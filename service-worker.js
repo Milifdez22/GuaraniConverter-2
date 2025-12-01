@@ -1,12 +1,12 @@
 // service-worker.js
 
-// Nombre de la caché.
-const CACHE_NAME = 'guarani-converter-v2';
+// 1. Cambiamos la versión para forzar la actualización definitiva
+const CACHE_NAME = 'guarani-converter-v5';
 
-// Lista de URLs de los recursos que forman el "App Shell". 
+// 2. Rutas corregidas para el repositorio 'GuaraniConverter-2'
 const urlsToCache = [
-  './', // Ruta principal
-  './index.html', // <--- ¡Esta referencia es CRUCIAL!
+  '/GuaraniConverter-2/', // Ruta principal del repositorio
+  '/GuaraniConverter-2/index.html', // Ruta del archivo HTML dentro del repo
   'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap', 
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', 
   'https://cdn.jsdelivr.net/npm/chart.js', 
@@ -48,11 +48,9 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Retorna el recurso de la caché si existe
         if (response) {
           return response;
         }
-        // Si no está en caché, va a la red 
         return fetch(event.request);
       }
     )
