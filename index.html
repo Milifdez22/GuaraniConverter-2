@@ -221,21 +221,9 @@
         let currentCurrency = 'ARS'; 
         let lastEdited = 'PYG';
 
-        // index.html (Cerca de la Línea 240, donde defines el Chart)
-
-let chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: ['1D', '2D', '3D', '4D', '5D', '6D', '7D', 'Hoy'],
-        datasets: [{
-            label: 'Histórico', 
-            data: initialData, // <--- CAMBIO CLAVE AQUÍ
-            borderColor: '#a060fa', backgroundColor: 'rgba(160, 96, 250, 0.1)',
-            // ...
-        }]
-    },
-    // ...
-});
+        // --- LÓGICA DE FALLBACK (Para que el gráfico inicie offline) ---
+        const initialRateFallback = 7; // Usamos 7 como un valor seguro para el ARS/PYG
+        const initialData = Array.from({length: 8}, () => initialRateFallback + (Math.random() * initialRateFallback * 0.005 - (initialRateFallback * 0.0025)));
 
 
         // --- FUNCIÓN AUXILIAR PARA ACTUALIZAR LA UI ---
@@ -282,29 +270,14 @@ let chart = new Chart(ctx, {
                 
                 exchangeRates = newRates;
                 updateUI(exchangeRates[currentCurrency]); // Actualiza con los datos frescos
-
-                // index.html (Dentro de async function fetchExchangeRates)
-
-// ... (todo el bloque try) ...
-
-} catch (error) {
-    console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
-    
-    // CORRECCIÓN: Solo si la caché estaba realmente vacía y la app no pudo inicializarse con datos.
-    if (!cachedData) {
-        rateDisplay.innerText = 'Error de conexión (No hay datos guardados)';
-    } else {
-        // Si hay datos de caché, mostramos el mensaje de que son antiguos, 
-        // pero la aplicación sigue siendo funcional.
-        rateDisplay.innerText = `${currentCurrency} (Datos Offline)`;
-    }
-}
-
                 
             } catch (error) {
+                // ESTA ES LA LÓGICA CORRECTA DEL BLOQUE CATCH
                 console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
                 if (!cachedData) {
-                    rateDisplay.innerText = 'Error de conexión (Offline)';
+                    rateDisplay.innerText = 'Error de conexión (No hay datos guardados)';
+                } else {
+                    rateDisplay.innerText = `${currentCurrency} (Datos Offline)`;
                 }
             }
         }
@@ -358,13 +331,16 @@ let chart = new Chart(ctx, {
         }
         document.addEventListener('click', (e) => { if (!e.target.closest('.custom-select-container')) optionsMenu.classList.remove('active'); });
 
+        // --- INICIALIZACIÓN DEL GRÁFICO (USA FALLBACK AL INICIO) ---
         let chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: ['1D', '2D', '3D', '4D', '5D', '6D', '7D', 'Hoy'],
                 datasets: [{
-                    label: 'Histórico', data: [6.5, 6.8, 6.7, 6.9, 7.0, 7.1, 7.0, 7.0],
-                    borderColor: '#a060fa', backgroundColor: 'rgba(160, 96, 250, 0.1)',
+                    label: 'Histórico', 
+                    data: initialData, // <--- USA LA DATA DE FALLBACK
+                    borderColor: '#a060fa', 
+                    backgroundColor: 'rgba(160, 96, 250, 0.1)',
                     borderWidth: 2, tension: 0.4, pointRadius: 0, fill: true
                 }]
             },
