@@ -1,13 +1,13 @@
 // service-worker.js
 
-// Nombre de la caché. Cambiar el número de versión forzará al navegador a actualizar.
+// Nombre de la caché.
 const CACHE_NAME = 'guarani-converter-v2';
 
 // Lista de URLs de los recursos que forman el "App Shell". 
-// IMPORTANTE: Referencia al archivo principal como index.html
+// ¡CORREGIDO! Usamos index.html
 const urlsToCache = [
   './', // Ruta principal
-  './index.html', // <--- CORREGIDO para coincidir con tu archivo en GitHub.
+  './index.html', 
   'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap', // Fuentes
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', // Iconos
   'https://cdn.jsdelivr.net/npm/chart.js', // Biblioteca Chart.js
@@ -18,8 +18,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Cache abierta.');
-        return cache.addAll(urlsToCache);
+        console.log('Service Worker: Cache abierta. Intentando cachear App Shell.');
+        // Esta línea ahora buscará index.html, lo que permitirá que la instalación sea exitosa.
+        return cache.addAll(urlsToCache); 
       })
       .then(() => self.skipWaiting()) 
   );
@@ -45,12 +46,12 @@ self.addEventListener('activate', (event) => {
 
 
 // --- FASE DE FETCH (Estrategia Cache-First para el App Shell) ---
-// Intercepta todas las peticiones para servir desde caché primero, si es posible.
+// ¡CRÍTICO! Intercepta peticiones para servir desde caché, permitiendo el modo offline.
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Retorna el recurso de la caché si existe (ej. HTML, CSS, JS)
+        // Retorna el recurso de la caché si existe
         if (response) {
           return response;
         }
