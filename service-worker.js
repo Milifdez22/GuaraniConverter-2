@@ -1,21 +1,19 @@
 // service-worker.js
 
-// Nombre de la caché. Cambiar el número de versión (v2 a v3, etc.) forzará 
-// al navegador a descargar un nuevo Service Worker y refrescar todos los archivos.
+// Nombre de la caché. Cambiar el número de versión forzará al navegador a actualizar.
 const CACHE_NAME = 'guarani-converter-v2';
 
 // Lista de URLs de los recursos que forman el "App Shell". 
-// Estos archivos se cachearán para el modo sin conexión.
+// IMPORTANTE: Referencia al archivo principal como index.html
 const urlsToCache = [
-  './', // Ruta principal (necesaria para el modo sin conexión)
-  './guaranic.html', // Tu archivo HTML principal
+  './', // Ruta principal
+  './index.html', // <--- CORREGIDO para coincidir con tu archivo en GitHub.
   'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap', // Fuentes
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', // Iconos
   'https://cdn.jsdelivr.net/npm/chart.js', // Biblioteca Chart.js
 ];
 
 // --- FASE DE INSTALACIÓN ---
-// Cacha todos los recursos estáticos.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -23,13 +21,11 @@ self.addEventListener('install', (event) => {
         console.log('Service Worker: Cache abierta.');
         return cache.addAll(urlsToCache);
       })
-      // Saltar la fase de espera para activar el nuevo SW inmediatamente
       .then(() => self.skipWaiting()) 
   );
 });
 
 // --- FASE DE ACTIVACIÓN ---
-// Limpia cachés antiguas.
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -44,7 +40,6 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Reclamar clientes inmediatamente para que el SW tome el control
   event.waitUntil(self.clients.claim());
 });
 
@@ -59,7 +54,7 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
-        // Si no está en caché, va a la red (esto incluye las peticiones a la API)
+        // Si no está en caché, va a la red 
         return fetch(event.request);
       }
     )
