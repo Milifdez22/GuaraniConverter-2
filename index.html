@@ -221,6 +221,23 @@
         let currentCurrency = 'ARS'; 
         let lastEdited = 'PYG';
 
+        // index.html (Cerca de la Línea 240, donde defines el Chart)
+
+let chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['1D', '2D', '3D', '4D', '5D', '6D', '7D', 'Hoy'],
+        datasets: [{
+            label: 'Histórico', 
+            data: initialData, // <--- CAMBIO CLAVE AQUÍ
+            borderColor: '#a060fa', backgroundColor: 'rgba(160, 96, 250, 0.1)',
+            // ...
+        }]
+    },
+    // ...
+});
+
+
         // --- FUNCIÓN AUXILIAR PARA ACTUALIZAR LA UI ---
         function updateUI(baseRate) {
             updateRateDisplay();
@@ -265,6 +282,24 @@
                 
                 exchangeRates = newRates;
                 updateUI(exchangeRates[currentCurrency]); // Actualiza con los datos frescos
+
+                // index.html (Dentro de async function fetchExchangeRates)
+
+// ... (todo el bloque try) ...
+
+} catch (error) {
+    console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
+    
+    // CORRECCIÓN: Solo si la caché estaba realmente vacía y la app no pudo inicializarse con datos.
+    if (!cachedData) {
+        rateDisplay.innerText = 'Error de conexión (No hay datos guardados)';
+    } else {
+        // Si hay datos de caché, mostramos el mensaje de que son antiguos, 
+        // pero la aplicación sigue siendo funcional.
+        rateDisplay.innerText = `${currentCurrency} (Datos Offline)`;
+    }
+}
+
                 
             } catch (error) {
                 console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
