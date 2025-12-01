@@ -283,16 +283,16 @@
         }
 
         // --- REGISTRO DEL SERVICE WORKER (Debe ir fuera del timeout para iniciar rápido) ---
-        if ('serviceWorker' in navigator) {
-            // CORREGIDO: Usamos la ruta del repositorio
-            navigator.serviceWorker.register('/GuaraniConverter/service-worker.js')
-                .then((registration) => {
-                    console.log('ServiceWorker registrado con éxito: ', registration.scope);
-                })
-                .catch((err) => {
-                    console.log('Fallo el registro de ServiceWorker: ', err);
-                });
-        }
+if ('serviceWorker' in navigator) {
+    // CORREGIDO: Usamos la ruta del repositorio 'GuaraniConverter-2'
+    navigator.serviceWorker.register('/GuaraniConverter-2/service-worker.js')
+        .then((registration) => {
+            console.log('ServiceWorker registrado con éxito: ', registration.scope);
+        })
+        .catch((err) => {
+            console.log('Fallo el registro de ServiceWorker: ', err);
+        });
+}
         
         // --- CÓDIGO DE INICIALIZACIÓN Y SPLASH SCREEN ---
         window.addEventListener('load', () => {
