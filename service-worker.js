@@ -1,7 +1,7 @@
 // service-worker.js
 
 // Nombre de la caché.
-const CACHE_NAME = 'guarani-converter-v2';
+const CACHE_NAME = 'guarani-converter-v3'; // ¡Cambiamos la versión!
 
 // Lista de URLs de los recursos que forman el "App Shell". 
 // ¡CORREGIDO! Usamos index.html
