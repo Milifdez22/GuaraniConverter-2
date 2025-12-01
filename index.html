@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GuaraniConverter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0f0518;
+            --glass-bg: rgba(30, 10, 60, 0.4);
+            --glass-border: rgba(138, 43, 226, 0.3);
+            --accent-glow: rgba(138, 43, 226, 0.6);
+            --text-main: #ffffff;
+            --primary-purple: #8a2be2;
+            --menu-bg-start: rgba(45, 20, 85, 0.95);
+            --menu-bg-end: rgba(20, 10, 40, 0.98);
+        }
+
+        /* --- AQUÍ ESTÁ EL CAMBIO PARA ELIMINAR EL DESTELLO AZUL --- */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Poppins', sans-serif;
+            /* Esta línea elimina el flash azul al tocar en móviles */
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+
+        /* --- SPLASH SCREEN --- */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #120024; z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+            transition: opacity 1s ease-out, visibility 1s;
+        }
+        .logo-text {
+            font-size: 2rem; font-weight: 600;
+            background: linear-gradient(to right, #fff, #b984ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(138, 43, 226, 0.5);
+        }
+
+        /* --- APP CONTAINER --- */
+        .app-container {
+            width: 100%; max-width: 400px; height: 100vh;
+            display: flex; flex-direction: column; padding: 20px;
+            opacity: 0; transform: translateY(20px); transition: all 0.8s ease-out;
+        }
+
+        header { text-align: center; margin-bottom: 15px; margin-top: 10px; }
+
+        /* --- CHART SECTION --- */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(138, 43, 226, 0.1);
+            padding: 15px; margin-bottom: 20px;
+        }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .chart-title { color: var(--primary-purple); font-size: 1.1rem; font-weight: 600; }
+        .chart-rate-value {
+            font-size: 0.85rem; color: #fff; background: rgba(138, 43, 226, 0.2);
+            padding: 5px 12px; border-radius: 12px; border: 1px solid rgba(138, 43, 226, 0.4);
+        }
+        .chart-container { position: relative; height: 180px; width: 100%; }
+
+        /* --- CONVERTER SECTION --- */
+        .converter-section {
+            background: rgba(20, 5, 40, 0.6);
+            border-top: 1px solid var(--glass-border);
+            border-radius: 30px 30px 0 0;
+            flex-grow: 1; padding: 30px 20px;
+            margin: 0 -20px -20px -20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .currency-row {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; margin-bottom: 20px; font-size: 1.5rem; color: #dcdcdc;
+            position: relative; z-index: 10;
+        }
+        .currency-label { width: 35%; text-align: center; font-weight: 500; }
+        .swap-icon { color: var(--primary-purple); font-size: 1.2rem; text-shadow: 0 0 10px var(--primary-purple); }
+
+        /* --- CUSTOM DROPDOWN --- */
+        .custom-select-container { width: 35%; position: relative; text-align: center; }
+        .select-trigger {
+            cursor: pointer; border-bottom: 1px dashed rgba(138, 43, 226, 0.3);
+            padding-bottom: 2px; transition: color 0.3s;
+        }
+        .select-trigger:hover { color: #fff; text-shadow: 0 0 8px var(--primary-purple); }
+        .options-menu {
+            position: absolute; top: 100%; right: -10px; width: 160px;
+            background: linear-gradient(135deg, var(--menu-bg-start), var(--menu-bg-end));
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 43, 226, 0.2); border-radius: 20px;
+            padding: 10px 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            opacity: 0; visibility: hidden; transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999;
+        }
+        .options-menu.active { opacity: 1; visibility: visible; transform: translateY(10px); }
+        .option-item {
+            padding: 12px 20px; font-size: 1.2rem; color: #ccc; cursor: pointer;
+            text-align: left; transition: all 0.2s;
+        }
+        .option-item:hover { background: rgba(138, 43, 226, 0.15); color: #fff; padding-left: 25px; }
+        .option-item.selected { color: var(--primary-purple); font-weight: 600; }
+
+        /* --- INPUTS --- */
+        .inputs-row { display: flex; justify-content: space-between; width: 100%; gap: 15px; margin-bottom: 25px; }
+        .input-glass {
+            background: rgba(10, 5, 20, 0.6); border: 1px solid var(--glass-border);
+            border-radius: 15px; padding: 15px; width: 48%;
+            text-align: center; color: white; font-size: 1.2rem; outline: none;
+            transition: box-shadow 0.3s;
+        }
+        .input-glass:focus { box-shadow: 0 0 15px var(--accent-glow); border-color: var(--primary-purple); }
+
+        /* --- IVA TOGGLE --- */
+        .iva-container { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary-purple); box-shadow: 0 0 10px var(--primary-purple); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* --- RESULT DISPLAY --- */
+        .result-display {
+            margin-top: 30px; 
+            margin-bottom: 20px; 
+            font-size: 3rem; font-weight: 300; color: var(--primary-purple);
+            text-shadow: 0 0 20px rgba(138, 43, 226, 0.4); text-align: center;
+        }
+        
+        ::placeholder { color: rgba(255,255,255,0.2); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="logo-text">GuaraniConverter</div>
+    </div>
+
+    <div class="app-container" id="app">
+        <header>
+            <div class="logo-text" style="font-size: 1.5rem;">GuaraniConverter</div>
+        </header>
+
+        <div class="glass-panel">
+            <div class="chart-header">
+                <span class="chart-title">Cotización</span>
+                <span id="rateDisplay" class="chart-rate-value">Cargando...</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="rateChart"></canvas>
+            </div>
+        </div>
+
+        <div class="converter-section">
+            <div class="currency-row">
+                <div class="currency-label">PYG</div>
+                <i class="fas fa-exchange-alt swap-icon"></i>
+                <div class="custom-select-container">
+                    <div class="select-trigger" onclick="toggleMenu()">Peso</div>
+                    <div class="options-menu" id="optionsMenu">
+                        <div class="option-item selected" onclick="selectCurrency('ARS', 'Peso')">Peso</div>
+                        <div class="option-item" onclick="selectCurrency('USD', 'Dolar')">Dolar</div>
+                        <div class="option-item" onclick="selectCurrency('EUR', 'Euro')">Euro</div>
+                        <div class="option-item" onclick="selectCurrency('BRL', 'Real')">Real</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inputs-row">
+                <input type="number" id="inputPYG" class="input-glass" placeholder="0000" oninput="calculateFromPYG()">
+                <input type="number" id="inputTarget" class="input-glass" placeholder="0000" oninput="calculateFromTarget()">
+            </div>
+
+            <div class="iva-container">
+                <label class="switch">
+                    <input type="checkbox" id="ivaCheck" onchange="reCalculate()">
+                    <span class="slider"></span>
+                </label>
+                <span style="font-size: 0.9rem; color: #ccc;">Incluir IVA (10%)</span>
+            </div>
+
+            <div class="result-display" id="mainResult">0000</div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN DE CACHÉ Y API ---
+        const CACHE_TTL_MS = 3600000; // 1 hora
+        const CACHE_KEY = 'exchangeRatesCache'; 
+        
+        const API_KEY = '3dba815b8113a06ae1e7355b'; // Tu clave de ExchangeRate-API
+        const BASE_CURRENCY_API = 'USD'; // Base de la API gratuita
+        const TARGET_CURRENCIES = ['PYG', 'ARS', 'EUR', 'BRL']; 
+
+        let exchangeRates = {}; // Objeto para almacenar las tasas actualizadas
+        let currentCurrency = 'ARS'; 
+        let lastEdited = 'PYG';
+
+        // --- FUNCIÓN AUXILIAR PARA ACTUALIZAR LA UI ---
+        function updateUI(baseRate) {
+            updateRateDisplay();
+            reCalculate();
+            updateChartPlaceholder(baseRate); 
+        }
+
+        // --- FETCH DE LAS TASAS DE CAMBIO (MODIFICADO CON CACHÉ) ---
+        async function fetchExchangeRates() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+
+            // 1. INTENTAR USAR CACHÉ
+            if (cachedData) {
+                const cache = JSON.parse(cachedData);
+                // Verificar si la caché no ha expirado
+                if (Date.now() < cache.expiry) {
+                    console.log("Usando tasas desde la caché (Offline/Rápido).");
+                    exchangeRates = cache.data;
+                    updateUI(exchangeRates[currentCurrency]);
+                    return; // Termina la función aquí, usa la caché
+                } else {
+                    console.log("Caché expirada, obteniendo nuevas tasas de la red.");
+                }
+            }
+
+            // 2. SI LA CACHÉ NO EXISTE O ESTÁ EXPIRADA, LLAMAR A LA RED
+            const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${BASE_CURRENCY_API}`;
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                const rates = data.conversion_rates;
+                const pygToUSD = rates['PYG'];
+                
+                // Calcular las tasas inversas
+                const newRates = {};
+                for (const symbol of ['ARS', 'USD', 'EUR', 'BRL']) {
+                    if (rates[symbol] && rates[symbol] !== 0 && pygToUSD) {
+                        // Cálculo: 1 Moneda Objetivo = X PYG
+                        newRates[symbol] = pygToUSD / rates[symbol]; 
+                    }
+                }
+                
+                // 3. GUARDAR LA NUEVA RESPUESTA EN LA CACHÉ
+                const cacheToStore = {
+                    data: newRates,
+                    expiry: Date.now() + CACHE_TTL_MS // Define el tiempo de expiración
+                };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheToStore));
+                
+                exchangeRates = newRates;
+                updateUI(exchangeRates[currentCurrency]);
+                
+            } catch (error) {
+                // Manejo de Error: Si la red falla Y no hay caché válida.
+                console.error("Error al obtener tasas de cambio:", error);
+                rateDisplay.innerText = 'Error de conexión (Offline)';
+            }
+        }
+        
+        // --- CÓDIGO DE INICIALIZACIÓN (MODIFICADO CON REGISTRO DE SERVICE WORKER) ---
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const app = document.getElementById('app');
+                splash.style.opacity = '0'; 
+                splash.style.visibility = 'hidden';
+                app.style.opacity = '1'; 
+                app.style.transform = 'translateY(0)';
+                
+                // 1. LLAMA A LA API/CACHÉ PARA OBTENER LOS DATOS
+                fetchExchangeRates(); 
+
+                // 2. REGISTRA EL SERVICE WORKER PARA EL FUNCIONAMIENTO OFFLINE
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('/service-worker.js')
+                        .then((registration) => {
+                            console.log('ServiceWorker registrado con éxito: ', registration.scope);
+                        })
+                        .catch((err) => {
+                            console.log('Fallo el registro de ServiceWorker: ', err);
+                        });
+                }
+
+            }, 2000);
+        });
+
+        const inputPYG = document.getElementById('inputPYG');
+        const inputTarget = document.getElementById('inputTarget');
+        const ivaCheck = document.getElementById('ivaCheck');
+        const mainResult = document.getElementById('mainResult');
+        const rateDisplay = document.getElementById('rateDisplay');
+        const ctx = document.getElementById('rateChart').getContext('2d');
+        const optionsMenu = document.getElementById('optionsMenu');
+        const selectTrigger = document.querySelector('.select-trigger');
+        const optionItems = document.querySelectorAll('.option-item');
+
+        function toggleMenu() { optionsMenu.classList.toggle('active'); }
+        
+        // --- FUNCIÓN DE SELECCIÓN DE MONEDA (MODIFICADA) ---
+        function selectCurrency(code, name) {
+            currentCurrency = code; selectTrigger.innerText = name;
+            optionItems.forEach(item => item.classList.remove('selected'));
+            event.target.classList.add('selected'); optionsMenu.classList.remove('active');
+            // Usamos la nueva función updateUI para actualizar todo
+            updateUI(exchangeRates[currentCurrency]); 
+        }
+        document.addEventListener('click', (e) => { if (!e.target.closest('.custom-select-container')) optionsMenu.classList.remove('active'); });
+
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1D', '2D', '3D', '4D', '5D', '6D', '7D', 'Hoy'],
+                datasets: [{
+                    label: 'Histórico', data: [6.5, 6.8, 6.7, 6.9, 7.0, 7.1, 7.0, 7.0],
+                    borderColor: '#a060fa', backgroundColor: 'rgba(160, 96, 250, 0.1)',
+                    borderWidth: 2, tension: 0.4, pointRadius: 0, fill: true
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: { x: { grid: { display: false }, ticks: { color: '#666', font: {size: 10} } }, y: { display: false } }
+            }
+        });
+
+        // --- FUNCIÓN DE VISUALIZACIÓN DE TASA (USA exchangeRates) ---
+        function updateRateDisplay() { 
+            const rate = exchangeRates[currentCurrency] || 'N/A';
+            rateDisplay.innerText = `1 ${currentCurrency} ≈ ${typeof rate === 'number' ? Math.floor(rate).toLocaleString('es-PY') : rate} PYG`; 
+        }
+
+        // --- FUNCIÓN DE CÁLCULO DESDE PYG (USA exchangeRates) ---
+        function calculateFromPYG() {
+            lastEdited = 'PYG'; const pygVal = parseFloat(inputPYG.value);
+            const rate = exchangeRates[currentCurrency]; // Usa la tasa real
+            if (isNaN(pygVal) || !rate) { inputTarget.value = ''; mainResult.innerText = '0000'; return; }
+            let targetVal = pygVal / rate; 
+            inputTarget.value = targetVal.toFixed(2); updateResultDisplay(pygVal);
+        }
+
+        // --- FUNCIÓN DE CÁLCULO DESDE MONEDA OBJETIVO (USA exchangeRates) ---
+        function calculateFromTarget() {
+            lastEdited = 'TARGET'; const targetVal = parseFloat(inputTarget.value);
+            const rate = exchangeRates[currentCurrency]; // Usa la tasa real
+            if (isNaN(targetVal) || !rate) { inputPYG.value = ''; mainResult.innerText = '0000'; return; }
+            let pygVal = targetVal * rate; 
+            inputPYG.value = Math.floor(pygVal); updateResultDisplay(pygVal);
+        }
+
+        function reCalculate() { if (lastEdited === 'PYG') calculateFromPYG(); else calculateFromTarget(); }
+        function updateResultDisplay(val) {
+            if (ivaCheck.checked) val = val * 1.10; mainResult.innerText = Math.floor(val).toLocaleString('es-PY');
+        }
+
+        // --- FUNCIÓN DE ACTUALIZACIÓN DEL GRÁFICO (USA Tasa real) ---
+        function updateChartPlaceholder(baseRate) {
+            if (!baseRate || typeof baseRate !== 'number') return;
+            const variation = baseRate * 0.005; // Menor variación
+            const newData = Array.from({length: 8}, () => baseRate + (Math.random() * variation - (variation/2)));
+            chart.data.datasets[0].data = newData; 
+            chart.update();
+        }
+    </script>
+</body>
+</html>
