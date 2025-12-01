@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music House App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b121b;
+            --accent: #2c3e50;
+            --text: #ffffff;
+            --glow-color: #00d2ff;
+            --nav-bg: #121a25;
+            --nav-active: #1c2736;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif, Arial;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1a2533 0%, #0b121b 100%);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- PANTALLA DE CARGA --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #1a2533 0%, #0b121b 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+
+        .logo-text { text-align: center; font-size: 2.5rem; line-height: 1; }
+        .font-bold { font-weight: 700; }
+        .font-thin { font-weight: 300; }
+
+        /* --- CONTENEDORES --- */
+        .app-container {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.4s ease-in;
+            padding-bottom: 100px;
+            width: 100%;
+        }
+
+        .active-screen {
+            display: flex;
+            opacity: 1;
+        }
+
+        h2 {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            font-weight: 300;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        /* --- AFINADOR --- */
+        .tuner-gauge {
+            width: 280px;
+            height: 140px;
+            background: linear-gradient(to top, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+            border-top-left-radius: 150px;
+            border-top-right-radius: 150px;
+            position: relative;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .needle {
+            width: 4px;
+            height: 120px;
+            background-color: #ff5555;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            margin-left: -2px;
+            transform-origin: bottom center;
+            transform: rotate(0deg);
+            transition: transform 0.1s linear, background-color 0.2s;
+            box-shadow: 0 0 10px rgba(255,85,85,0.5);
+            z-index: 1;
+            border-radius: 2px;
+        }
+
+        .needle.tuned {
+            background-color: #00ffaa;
+            box-shadow: 0 0 15px rgba(0, 255, 170, 0.6);
+        }
+
+        .pivot {
+            width: 24px;
+            height: 24px;
+            background-color: #1a2533;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -12px;
+            z-index: 2;
+            border: 2px solid #2c3e50;
+        }
+
+        .note-display {
+            font-size: 4rem;
+            font-weight: 600;
+            margin-top: 10px;
+            color: #fff;
+            min-height: 80px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .frequency-display {
+            font-size: 1rem;
+            color: #8899a6;
+            margin-top: 0px;
+            font-family: monospace;
+        }
+
+        #mic-btn {
+            margin-top: 30px;
+            padding: 12px 25px;
+            background: #2c3e50;
+            border: none;
+            color: white;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        #mic-btn:active { transform: scale(0.95); }
+
+        /* --- METRÓNOMO --- */
+        .pulse-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #18222e, #111821);
+            box-shadow:  5px 5px 15px #080b0f, -5px -5px 15px #222e3d;
+            margin-bottom: 40px;
+            transition: all 0.1s ease-out;
+            position: relative;
+        }
+
+        .pulse-circle::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 0px var(--glow-color);
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .pulse-circle.beat {
+            transform: scale(1.05);
+            background: #253345;
+        }
+        
+        .pulse-circle.beat::after {
+            opacity: 1;
+            box-shadow: 0 0 30px var(--glow-color);
+        }
+
+        .slider-container { width: 80%; max-width: 300px; text-align: center; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -11px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.4);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 2px; background: #4a5a6e; cursor: pointer;
+        }
+
+        .bpm-display {
+            margin-top: 20px; font-size: 2rem; color: #fff; font-weight: 300;
+        }
+
+        .play-btn {
+            margin-top: 30px; padding: 10px 40px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.05); color: #fff; border-radius: 30px;
+            cursor: pointer; font-size: 1rem; transition: background 0.3s;
+        }
+        .play-btn:hover { background: rgba(255,255,255,0.1); }
+
+        /* --- NAVEGACIÓN (ANIMADA) --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 220px;
+            height: 65px;
+            background-color: var(--nav-bg);
+            border-radius: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px; /* Un poco de padding interno */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            z-index: 50;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative; /* Necesario para el indicador absoluto */
+        }
+
+        /* El fondo deslizante (La pastilla activa) */
+        .nav-indicator {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: calc(50% - 5px); /* Mitad del ancho menos ajuste */
+            height: calc(100% - 10px);
+            background-color: var(--nav-active);
+            border-radius: 30px;
+            z-index: 0; /* Detrás de los iconos */
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); /* Animación suave */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .nav-btn {
+            flex: 1;
+            height: 100%;
+            border: none;
+            background: transparent; /* Fondo transparente siempre */
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1; /* Encima del indicador */
+            position: relative;
+        }
+
+        .nav-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: #4a5a6e; /* Color inactivo */
+            transition: fill 0.3s ease;
+        }
+
+        /* Cuando el botón está activo, solo cambiamos el color del icono */
+        .nav-btn.active svg {
+            fill: #ffffff;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="logo-text">
+            <span class="font-bold">Music</span>
+            <span class="font-thin">House</span>
+        </div>
+    </div>
+
+    <div id="tuner-screen" class="app-container">
+        <h2>Afinador Cromático</h2>
+        <div class="tuner-gauge">
+            <div class="needle" id="tuner-needle"></div>
+            <div class="pivot"></div>
+        </div>
+        <div class="note-display" id="note-name">--</div>
+        <div class="frequency-display" id="freq-hz">Esperando señal...</div>
+        <button id="mic-btn" onclick="startTuner()"><span id="mic-btn-text">Activar Micrófono</span></button>
+    </div>
+
+    <div id="metronome-screen" class="app-container">
+        <h2>Metrónomo</h2>
+        <div class="pulse-circle" id="metronome-circle"></div>
+        <div class="slider-container">
+            <input type="range" min="40" max="220" value="120" id="bpm-slider">
+            <div class="bpm-display" id="bpm-text">120 BPM</div>
+        </div>
+        <button class="play-btn" id="metro-play-btn" onclick="toggleMetronome()">INICIAR</button>
+    </div>
+
+    <div class="bottom-nav" id="main-nav" style="display: none;">
+        <div class="nav-indicator" id="nav-indicator"></div>
+
+        <button class="nav-btn active" onclick="switchTab('tuner')">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        </button>
+        <button class="nav-btn" onclick="switchTab('metronome')">
+            <svg viewBox="0 0 24 24"><path d="M10.8 3.5L2.6 20h18.8L13.2 3.5h-2.4zm2.1 13.9l-2.1-7.2-2.1 7.2h4.2z"/></svg>
+        </button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', initApp);
+        setTimeout(initApp, 3000); // Failsafe
+
+        let appStarted = false;
+
+        function initApp() {
+            if (appStarted) return;
+            appStarted = true;
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const nav = document.getElementById('main-nav');
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+                nav.style.display = 'flex';
+                switchTab('tuner');
+            }, 2000);
+        }
+
+        // --- NAVEGACIÓN ANIMADA ---
+        function switchTab(tabName) {
+            const tunerScreen = document.getElementById('tuner-screen');
+            const metronomeScreen = document.getElementById('metronome-screen');
+            const btns = document.querySelectorAll('.nav-btn');
+            const indicator = document.getElementById('nav-indicator');
+
+            if (tabName === 'tuner') {
+                // Mostrar pantalla
+                tunerScreen.classList.add('active-screen');
+                metronomeScreen.classList.remove('active-screen');
+                
+                // Actualizar clases de botones (para el color del icono)
+                btns[0].classList.add('active');
+                btns[1].classList.remove('active');
+
+                // MOVER LA PASTILLA (ANIMACIÓN)
+                // translate(0) lo devuelve a la izquierda
+                indicator.style.transform = 'translateX(0)';
+
+            } else {
+                // Mostrar pantalla
+                tunerScreen.classList.remove('active-screen');
+                metronomeScreen.classList.add('active-screen');
+
+                // Actualizar clases de botones
+                btns[0].classList.remove('active');
+                btns[1].classList.add('active');
+
+                // MOVER LA PASTILLA (ANIMACIÓN)
+                // 100% del ancho del elemento + un pequeño ajuste por padding si fuera necesario
+                // Como ambos botones miden lo mismo, trasladar 100% lo pone exactamente en el otro lado
+                indicator.style.transform = 'translateX(100%)';
+            }
+        }
+
+        // --- METRÓNOMO ---
+        let metronomeInterval;
+        let isPlaying = false;
+        const circle = document.getElementById('metronome-circle');
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmText = document.getElementById('bpm-text');
+        const playBtn = document.getElementById('metro-play-btn');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playClick() {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        bpmSlider.addEventListener('input', (e) => {
+            const bpm = e.target.value;
+            bpmText.textContent = bpm + " BPM";
+            if (isPlaying) {
+                clearInterval(metronomeInterval);
+                startInterval(bpm);
+            }
+        });
+
+        function toggleMetronome() {
+            if (isPlaying) {
+                clearInterval(metronomeInterval);
+                playBtn.textContent = "INICIAR";
+                playBtn.style.background = "rgba(255,255,255,0.05)";
+                circle.classList.remove('beat');
+                isPlaying = false;
+            } else {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                startInterval(bpmSlider.value);
+                playBtn.textContent = "DETENER";
+                playBtn.style.background = "rgba(200,50,50,0.3)";
+                isPlaying = true;
+            }
+        }
+
+        function startInterval(bpm) {
+            const ms = 60000 / bpm;
+            playClick();
+            circle.classList.add('beat');
+            setTimeout(() => circle.classList.remove('beat'), 100);
+
+            metronomeInterval = setInterval(() => {
+                playClick();
+                circle.classList.add('beat');
+                setTimeout(() => circle.classList.remove('beat'), 100);
+            }, ms);
+        }
+
+        // --- AFINADOR ---
+        let tunerContext, analyser, isTunerRunning = false;
+        const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        async function startTuner() {
+            if (isTunerRunning) return;
+            const btn = document.getElementById('mic-btn');
+            try {
+                tunerContext = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const source = tunerContext.createMediaStreamSource(stream);
+                analyser = tunerContext.createAnalyser();
+                analyser.fftSize = 2048;
+                source.connect(analyser);
+                isTunerRunning = true;
+                btn.style.display = 'none';
+                document.getElementById('freq-hz').textContent = "Escuchando...";
+                updatePitch();
+            } catch (err) { alert("Error micrófono: " + err); }
+        }
+
+        function updatePitch() {
+            if (!isTunerRunning) return;
+            const buffer = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(buffer);
+            const frequency = autoCorrelate(buffer, tunerContext.sampleRate);
+
+            if (frequency !== -1) {
+                const note = getNote(frequency);
+                const cents = getCents(frequency, note);
+                document.getElementById('note-name').textContent = noteStrings[note % 12];
+                document.getElementById('freq-hz').textContent = Math.round(frequency) + " Hz";
+                
+                const needle = document.getElementById('tuner-needle');
+                let angle = cents * 1.5;
+                if (angle > 90) angle = 90; if (angle < -90) angle = -90;
+                needle.style.transform = `rotate(${angle}deg)`;
+
+                if (Math.abs(cents) < 10) {
+                    needle.classList.add('tuned');
+                    document.getElementById('note-name').style.color = "#00ffaa";
+                } else {
+                    needle.classList.remove('tuned');
+                    document.getElementById('note-name').style.color = "#ffffff";
+                }
+            }
+            requestAnimationFrame(updatePitch);
+        }
+
+        function autoCorrelate(buf, sampleRate) {
+            let SIZE = buf.length, rms = 0;
+            for (let i=0;i<SIZE;i++) { rms+=buf[i]*buf[i]; }
+            if (Math.sqrt(rms/SIZE)<0.01) return -1;
+
+            let r1=0, r2=SIZE-1, thres=0.2;
+            for (let i=0; i<SIZE/2; i++) if (Math.abs(buf[i])<thres) { r1=i; break; }
+            for (let i=1; i<SIZE/2; i++) if (Math.abs(buf[SIZE-i])<thres) { r2=SIZE-i; break; }
+
+            buf = buf.slice(r1,r2); SIZE = buf.length;
+            let c = new Array(SIZE).fill(0);
+            for (let i=0; i<SIZE; i++) for (let j=0; j<SIZE-i; j++) c[i] = c[i] + buf[j]*buf[j+i];
+
+            let d=0; while (c[d]>c[d+1]) d++;
+            let maxval=-1, maxpos=-1;
+            for (let i=d; i<SIZE; i++) if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+            return sampleRate/maxpos;
+        }
+
+        function getNote(freq) { return Math.round(12 * (Math.log(freq / 440) / Math.log(2))) + 69; }
+        function getCents(freq, note) { return Math.floor(1200 * Math.log(freq / (440 * Math.pow(2, (note-69)/12))) / Math.log(2)); }
+    </script>
+</body>
+</html>
