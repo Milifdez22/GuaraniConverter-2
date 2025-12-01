@@ -229,60 +229,55 @@
             updateChartPlaceholder(baseRate); 
         }
 
-        // --- FETCH DE LAS TASAS DE CAMBIO (MODIFICADO CON CACHÉ) ---
-        async function fetchExchangeRates() {
-            const cachedData = localStorage.getItem(CACHE_KEY);
+        // --- FETCH DE LAS TASAS DE CAMBIO (MODIFICADO CON CACHÉ INDEFINIDA) ---
+async function fetchExchangeRates() {
+    const cachedData = localStorage.getItem(CACHE_KEY);
 
-            // 1. INTENTAR USAR CACHÉ
-            if (cachedData) {
-                const cache = JSON.parse(cachedData);
-                // Verificar si la caché no ha expirado
-                if (Date.now() < cache.expiry) {
-                    console.log("Usando tasas desde la caché (Offline/Rápido).");
-                    exchangeRates = cache.data;
-                    updateUI(exchangeRates[currentCurrency]);
-                    return; // Termina la función aquí, usa la caché
-                } else {
-                    console.log("Caché expirada, obteniendo nuevas tasas de la red.");
-                }
-            }
+    // 1. Intentar usar la caché (si existe, la cargamos inmediatamente para una respuesta rápida)
+    if (cachedData) {
+        const cache = JSON.parse(cachedData);
+        exchangeRates = cache.data;
+        updateUI(exchangeRates[currentCurrency]);
+        
+        console.log("Datos de la caché cargados. Intentando actualizar desde la red.");
+    }
+    
+    // Si no hay caché Y no hay red, la UI mostrará "Cargando..." o el último dato si lo hubo.
+    
+    // 2. Siempre intentar llamar a la RED para obtener datos más recientes
+    const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${BASE_CURRENCY_API}`;
 
-            // 2. SI LA CACHÉ NO EXISTE O ESTÁ EXPIRADA, LLAMAR A LA RED
-            const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${BASE_CURRENCY_API}`;
-
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                
-                const data = await response.json();
-                const rates = data.conversion_rates;
-                const pygToUSD = rates['PYG'];
-                
-                // Calcular las tasas inversas
-                const newRates = {};
-                for (const symbol of ['ARS', 'USD', 'EUR', 'BRL']) {
-                    if (rates[symbol] && rates[symbol] !== 0 && pygToUSD) {
-                        // Cálculo: 1 Moneda Objetivo = X PYG
-                        newRates[symbol] = pygToUSD / rates[symbol]; 
-                    }
-                }
-                
-                // 3. GUARDAR LA NUEVA RESPUESTA EN LA CACHÉ
-                const cacheToStore = {
-                    data: newRates,
-                    expiry: Date.now() + CACHE_TTL_MS // Define el tiempo de expiración
-                };
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheToStore));
-                
-                exchangeRates = newRates;
-                updateUI(exchangeRates[currentCurrency]);
-                
-            } catch (error) {
-                // Manejo de Error: Si la red falla Y no hay caché válida.
-                console.error("Error al obtener tasas de cambio:", error);
-                rateDisplay.innerText = 'Error de conexión (Offline)';
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        const rates = data.conversion_rates;
+        const pygToUSD = rates['PYG'];
+        
+        const newRates = {};
+        for (const symbol of ['ARS', 'USD', 'EUR', 'BRL']) {
+            if (rates[symbol] && rates[symbol] !== 0 && pygToUSD) {
+                newRates[symbol] = pygToUSD / rates[symbol]; 
             }
         }
+        
+        // 3. GUARDAR LA NUEVA RESPUESTA EN LA CACHÉ (SIN CAMPO DE EXPIRACIÓN)
+        const cacheToStore = { data: newRates }; 
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheToStore));
+        
+        exchangeRates = newRates;
+        updateUI(exchangeRates[currentCurrency]);
+        
+    } catch (error) {
+        console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
+        if (!cachedData) {
+            // Solo si la red falla Y no había datos guardados para mostrar.
+            rateDisplay.innerText = 'Error de conexión (Offline)';
+        }
+    }
+}
+
         
         // --- CÓDIGO DE INICIALIZACIÓN (MODIFICADO CON REGISTRO DE SERVICE WORKER) ---
         window.addEventListener('load', () => {
