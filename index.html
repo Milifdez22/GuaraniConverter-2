@@ -211,8 +211,7 @@
 
     <script>
         // --- CONFIGURACIÓN DE CACHÉ Y API ---
-        const CACHE_TTL_MS = 3600000; // 1 hora
-        const CACHE_KEY = 'exchangeRatesCache'; 
+        const CACHE_KEY = 'exchangeRatesCache'; // Solo la clave, el TTL es indefinido
         
         const API_KEY = '3dba815b8113a06ae1e7355b'; // Tu clave de ExchangeRate-API
         const BASE_CURRENCY_API = 'USD'; // Base de la API gratuita
@@ -229,57 +228,64 @@
             updateChartPlaceholder(baseRate); 
         }
 
-        // --- FETCH DE LAS TASAS DE CAMBIO (MODIFICADO CON CACHÉ INDEFINIDA) ---
-async function fetchExchangeRates() {
-    const cachedData = localStorage.getItem(CACHE_KEY);
+        // --- FETCH DE LAS TASAS DE CAMBIO (CACHÉ INDEFINIDA) ---
+        async function fetchExchangeRates() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
 
-    // 1. Intentar usar la caché (si existe, la cargamos inmediatamente para una respuesta rápida)
-    if (cachedData) {
-        const cache = JSON.parse(cachedData);
-        exchangeRates = cache.data;
-        updateUI(exchangeRates[currentCurrency]);
-        
-        console.log("Datos de la caché cargados. Intentando actualizar desde la red.");
-    }
-    
-    // Si no hay caché Y no hay red, la UI mostrará "Cargando..." o el último dato si lo hubo.
-    
-    // 2. Siempre intentar llamar a la RED para obtener datos más recientes
-    const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${BASE_CURRENCY_API}`;
+            // 1. Intentar usar la caché (si existe, la cargamos inmediatamente como fallback)
+            if (cachedData) {
+                const cache = JSON.parse(cachedData);
+                exchangeRates = cache.data;
+                updateUI(exchangeRates[currentCurrency]);
+                
+                console.log("Datos de la caché cargados. Intentando actualizar desde la red.");
+            }
+            
+            // 2. Siempre intentar llamar a la RED para obtener datos más recientes
+            const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${BASE_CURRENCY_API}`;
 
-    try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const data = await response.json();
-        const rates = data.conversion_rates;
-        const pygToUSD = rates['PYG'];
-        
-        const newRates = {};
-        for (const symbol of ['ARS', 'USD', 'EUR', 'BRL']) {
-            if (rates[symbol] && rates[symbol] !== 0 && pygToUSD) {
-                newRates[symbol] = pygToUSD / rates[symbol]; 
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                const rates = data.conversion_rates;
+                const pygToUSD = rates['PYG'];
+                
+                const newRates = {};
+                for (const symbol of ['ARS', 'USD', 'EUR', 'BRL']) {
+                    if (rates[symbol] && rates[symbol] !== 0 && pygToUSD) {
+                        newRates[symbol] = pygToUSD / rates[symbol]; 
+                    }
+                }
+                
+                // 3. GUARDAR LA NUEVA RESPUESTA EN LA CACHÉ (SIN CAMPO DE EXPIRACIÓN)
+                const cacheToStore = { data: newRates }; 
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheToStore));
+                
+                exchangeRates = newRates;
+                updateUI(exchangeRates[currentCurrency]); // Actualiza con los datos frescos
+                
+            } catch (error) {
+                console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
+                if (!cachedData) {
+                    rateDisplay.innerText = 'Error de conexión (Offline)';
+                }
             }
         }
-        
-        // 3. GUARDAR LA NUEVA RESPUESTA EN LA CACHÉ (SIN CAMPO DE EXPIRACIÓN)
-        const cacheToStore = { data: newRates }; 
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheToStore));
-        
-        exchangeRates = newRates;
-        updateUI(exchangeRates[currentCurrency]);
-        
-    } catch (error) {
-        console.error("Fallo la llamada a la red. Usando datos antiguos de la caché.");
-        if (!cachedData) {
-            // Solo si la red falla Y no había datos guardados para mostrar.
-            rateDisplay.innerText = 'Error de conexión (Offline)';
-        }
-    }
-}
 
+        // --- REGISTRO DEL SERVICE WORKER (Debe ir fuera del timeout para iniciar rápido) ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('ServiceWorker registrado con éxito: ', registration.scope);
+                })
+                .catch((err) => {
+                    console.log('Fallo el registro de ServiceWorker: ', err);
+                });
+        }
         
-        // --- CÓDIGO DE INICIALIZACIÓN (MODIFICADO CON REGISTRO DE SERVICE WORKER) ---
+        // --- CÓDIGO DE INICIALIZACIÓN Y SPLASH SCREEN ---
         window.addEventListener('load', () => {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
@@ -289,19 +295,8 @@ async function fetchExchangeRates() {
                 app.style.opacity = '1'; 
                 app.style.transform = 'translateY(0)';
                 
-                // 1. LLAMA A LA API/CACHÉ PARA OBTENER LOS DATOS
+                // Llama a la API/CACHÉ DESPUÉS DE LA SPLASH SCREEN
                 fetchExchangeRates(); 
-
-                // 2. REGISTRA EL SERVICE WORKER PARA EL FUNCIONAMIENTO OFFLINE
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('/service-worker.js')
-                        .then((registration) => {
-                            console.log('ServiceWorker registrado con éxito: ', registration.scope);
-                        })
-                        .catch((err) => {
-                            console.log('Fallo el registro de ServiceWorker: ', err);
-                        });
-                }
 
             }, 2000);
         });
@@ -318,12 +313,11 @@ async function fetchExchangeRates() {
 
         function toggleMenu() { optionsMenu.classList.toggle('active'); }
         
-        // --- FUNCIÓN DE SELECCIÓN DE MONEDA (MODIFICADA) ---
+        // --- FUNCIÓN DE SELECCIÓN DE MONEDA ---
         function selectCurrency(code, name) {
             currentCurrency = code; selectTrigger.innerText = name;
             optionItems.forEach(item => item.classList.remove('selected'));
             event.target.classList.add('selected'); optionsMenu.classList.remove('active');
-            // Usamos la nueva función updateUI para actualizar todo
             updateUI(exchangeRates[currentCurrency]); 
         }
         document.addEventListener('click', (e) => { if (!e.target.closest('.custom-select-container')) optionsMenu.classList.remove('active'); });
@@ -344,39 +338,32 @@ async function fetchExchangeRates() {
             }
         });
 
-        // --- FUNCIÓN DE VISUALIZACIÓN DE TASA (USA exchangeRates) ---
+        // --- FUNCIONES DE CÁLCULO Y DISPLAY ---
         function updateRateDisplay() { 
             const rate = exchangeRates[currentCurrency] || 'N/A';
             rateDisplay.innerText = `1 ${currentCurrency} ≈ ${typeof rate === 'number' ? Math.floor(rate).toLocaleString('es-PY') : rate} PYG`; 
         }
-
-        // --- FUNCIÓN DE CÁLCULO DESDE PYG (USA exchangeRates) ---
         function calculateFromPYG() {
             lastEdited = 'PYG'; const pygVal = parseFloat(inputPYG.value);
-            const rate = exchangeRates[currentCurrency]; // Usa la tasa real
+            const rate = exchangeRates[currentCurrency];
             if (isNaN(pygVal) || !rate) { inputTarget.value = ''; mainResult.innerText = '0000'; return; }
             let targetVal = pygVal / rate; 
             inputTarget.value = targetVal.toFixed(2); updateResultDisplay(pygVal);
         }
-
-        // --- FUNCIÓN DE CÁLCULO DESDE MONEDA OBJETIVO (USA exchangeRates) ---
         function calculateFromTarget() {
             lastEdited = 'TARGET'; const targetVal = parseFloat(inputTarget.value);
-            const rate = exchangeRates[currentCurrency]; // Usa la tasa real
+            const rate = exchangeRates[currentCurrency];
             if (isNaN(targetVal) || !rate) { inputPYG.value = ''; mainResult.innerText = '0000'; return; }
             let pygVal = targetVal * rate; 
             inputPYG.value = Math.floor(pygVal); updateResultDisplay(pygVal);
         }
-
         function reCalculate() { if (lastEdited === 'PYG') calculateFromPYG(); else calculateFromTarget(); }
         function updateResultDisplay(val) {
             if (ivaCheck.checked) val = val * 1.10; mainResult.innerText = Math.floor(val).toLocaleString('es-PY');
         }
-
-        // --- FUNCIÓN DE ACTUALIZACIÓN DEL GRÁFICO (USA Tasa real) ---
         function updateChartPlaceholder(baseRate) {
             if (!baseRate || typeof baseRate !== 'number') return;
-            const variation = baseRate * 0.005; // Menor variación
+            const variation = baseRate * 0.005;
             const newData = Array.from({length: 8}, () => baseRate + (Math.random() * variation - (variation/2)));
             chart.data.datasets[0].data = newData; 
             chart.update();
